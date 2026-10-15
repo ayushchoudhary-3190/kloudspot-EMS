@@ -1,6 +1,10 @@
 package EMS
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"gorm.io/gorm"
+)
 
 func CreateEmployee(e *Employee) error{
 	if e.fullName == ""{
@@ -13,4 +17,13 @@ func CreateEmployee(e *Employee) error{
 	return err
 }
 
-func RemoveEmployee()
+func RemoveEmployee(employeeID uint) (error){
+	err:= repository.DeleteEmployee(employeeID)
+	if err!=nil{
+		if errors.Is(err, gorm.ErrRecordNotFound){
+			return fmt.Errorf("employee with ID not found")
+		}
+		return fmt.Errorf("failed to delete employee")
+	}
+	return nil
+}
