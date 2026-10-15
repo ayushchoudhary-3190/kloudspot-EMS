@@ -15,3 +15,4 @@ type Employee struct{
 	salary		uint
 	status		string
 }
+

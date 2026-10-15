@@ -27,3 +27,11 @@ func RemoveEmployee(employeeID uint) (error){
 	}
 	return nil
 }
+
+func DisplayDetails(page int) ([]Employee,error){
+	result,err:= repository.FetchDetails(page)
+	if err!=nil{
+		return nil,fmt.Errorf("failed to fetch employee details : %w",err)
+	}
+	return result,nil
+}
