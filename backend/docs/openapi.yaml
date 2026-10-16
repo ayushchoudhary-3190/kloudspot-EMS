@@ -1,0 +1,276 @@
+openapi: 3.0.3
+info:
+  title: kloudspot-EMS API
+  description: Employee Management System REST API (Go + SQLite).
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Auth
+  - name: Employees
+paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [Auth]
+      responses:
+        '200':
+          description: Service is healthy
+  /api/auth/login:
+    post:
+      summary: Authenticate an administrator
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+            example:
+              username: admin
+              password: admin123
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  username:
+                    type: string
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/employees:
+    get:
+      summary: List employees (paginated, searchable, filterable)
+      tags: [Employees]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 10, maximum: 100 }
+        - in: query
+          name: search
+          description: Matches full name or email (case-insensitive)
+          schema: { type: string }
+        - in: query
+          name: department
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string, enum: [Active, Inactive] }
+      responses:
+        '200':
+          description: A page of employees
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEmployees'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create an employee
+      tags: [Employees]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/employees/export:
+    get:
+      summary: Export matching employees as CSV
+      tags: [Employees]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: department
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string, enum: [Active, Inactive] }
+      responses:
+        '200':
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+  /api/employees/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    get:
+      summary: Get an employee by id
+      tags: [Employees]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The employee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Update an employee
+      tags: [Employees]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeInput'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete an employee
+      tags: [Employees]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/departments:
+    get:
+      summary: List distinct departments
+      tags: [Employees]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of department names
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+    LoginInput:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string }
+    Employee:
+      type: object
+      properties:
+        employeeId: { type: integer }
+        fullName: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        department: { type: string }
+        designation: { type: string }
+        dateOfJoining: { type: string, format: date }
+        salary: { type: integer }
+        status: { type: string, enum: [Active, Inactive] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    EmployeeInput:
+      type: object
+      required: [fullName, email, status]
+      properties:
+        fullName: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        department: { type: string }
+        designation: { type: string }
+        dateOfJoining: { type: string, format: date }
+        salary: { type: integer }
+        status: { type: string, enum: [Active, Inactive] }
+    PaginatedEmployees:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Employee'
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+        totalPages: { type: integer }
